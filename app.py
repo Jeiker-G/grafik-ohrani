@@ -20,7 +20,6 @@ def save_db(db):
         df = pd.DataFrame([{"key": k, "name": v} for k, v in db.items()])
         df.to_csv(DATA_FILE, index=False)
     else:
-        # Если база пуста, создаем файл с нужными заголовками, чтобы избежать ошибок
         pd.DataFrame(columns=["key", "name"]).to_csv(DATA_FILE, index=False)
 
 @st.dialog("Запись на дежурство")
@@ -34,6 +33,55 @@ def edit_cell(key):
             if key in db:
                 del db[key]
         else:
+            db[key] = new_name.strip()
+            
+        save_db(db)
+        st.rerun()
+
+# CSS для красоты
+st.markdown("""
+    <style>
+    .time-box { background: #E3F2FD; border-radius: 8px; padding: 8px; text-align: center; font-weight: 700; border: 1px solid #90CAF9; color: #1565C0; margin-top: 10px; font-size: 0.9rem; }
+    .stButton > button { width: 100%; height: 40px !important; }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("График дежурства")
+db = load_db()
+
+def get_slots(is_stroyka):
+    if is_stroyka:
+        return ["00:00-02:00", "02:00-04:00", "04:00-06:00", "06:00-07:30", "07:30-17:30", "17:30-20:00", "20:00-22:00", "22:00-00:00"]
+    else:
+        return ["00:00-02:00", "02:00-04:00", "04:00-06:00", "06:00-08:00", "08:00-10:00", "10:00-12:00", 
+                "12:00-14:00", "14:00-16:00", "16:00-18:00", "18:00-20:00", "20:00-22:00", "22:00-00:00"]
+
+cols = st.columns(7)
+days = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+
+for d_idx, day in enumerate(days):
+    with cols[d_idx]:
+        st.markdown(f"### {day}")
+        is_stroyka = 1 <= d_idx <= 5
+        slots = get_slots(is_stroyka)
+        
+        for i, slot in enumerate(slots):
+            st.markdown(f"<div class='time-box'>{slot}</div>", unsafe_allow_html=True)
+            
+            if is_stroyka and i == 4:
+                # Уникальный ключ для кнопки стройки
+                st.button("Стройка", key=f"stroyka_{d_idx}_{i}")
+            else:
+                for post in [1, 2]:
+                    # Уникальный ключ для каждого слота
+                    key = f"cell_{d_idx}_{i}_{post}"
+                    val = db.get(key)
+                    
+                    is_occupied = val and val != "nan" and val.strip() != ""
+                    btn_text = val if is_occupied else "Свободно"
+                    
+                    if st.button(btn_text, key=key, type="primary" if is_occupied else "secondary"):
+                        edit_cell(key)
             db[key] = new_name.strip()
             
         save_db(db)
