@@ -2,9 +2,10 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 
-@st.cache_resource
+# Настройка подключения к Google Sheets
+@st.cache_resource(ttl=600)
 def get_sheet():
-    # Учетные данные вшиты напрямую, чтобы избежать проблем с переносом строк
+    # Данные сервисного аккаунта (вставлены напрямую в код для стабильности)
     creds_dict = {
         "type": "service_account",
         "project_id": "alien-airfoil-404006",
@@ -24,6 +25,7 @@ def get_sheet():
         "https://www.googleapis.com/auth/drive"
     ])
     client = gspread.authorize(scoped_creds)
+    # Открываем таблицу по ID из Secrets
     return client.open_by_key(st.secrets["SHEET_ID"]).get_worksheet(0)
 
 def load_data():
@@ -39,7 +41,9 @@ def save_data(db):
     if rows:
         sheet.append_rows(rows)
 
+# Интерфейс Streamlit
 st.title("График дежурства")
+
 db = load_data()
 name_input = st.text_input("Введите имя:", key="name_in")
 
@@ -48,7 +52,7 @@ if st.button("Записаться на 10:00"):
         db['cell_10_00'] = name_input.strip()
         save_data(db)
         st.success("Сохранено!")
-        st.rerun()
+        st.rerun() # Обновляем страницу для отображения данных
     else:
         st.warning("Введите имя!")
 
