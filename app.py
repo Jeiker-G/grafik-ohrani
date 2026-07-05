@@ -1,39 +1,54 @@
 import streamlit as st
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
-import os
 
-st.set_page_config(layout="wide")
-DATA_FILE = "schedule_v46.csv"
+# 1. Функция подключения к таблице
+@st.cache_resource
+def get_sheet():
+    creds_dict = st.secrets["gcp_service_account"]
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    return client.open_by_key(st.secrets["SHEET_ID"]).sheet1
 
-def load_db():
-    if os.path.exists(DATA_FILE):
-        try:
-            df = pd.read_csv(DATA_FILE)
-            if 'key' in df.columns and 'name' in df.columns:
-                return {str(row['key']): str(row['name']) for _, row in df.iterrows() if pd.notna(row['key'])}
-        except Exception:
-            return {}
-    return {}
+# 2. Функция загрузки данных
+def load_data():
+    sheet = get_sheet()
+    data = sheet.get_all_records()
+    # Возвращаем словарь, где key — это ключ ячейки, а name — имя
+    return {str(row['key']): str(row['name']) for row in data}
 
-def save_db(db):
-    if db:
-        df = pd.DataFrame([{"key": k, "name": v} for k, v in db.items()])
-        df.to_csv(DATA_FILE, index=False)
-    else:
-        pd.DataFrame(columns=["key", "name"]).to_csv(DATA_FILE, index=False)
-
-@st.dialog("Запись на дежурство")
-def edit_cell(key):
-    # Используем локальную копию словаря
-    db = load_db()
-    current_val = db.get(key, "")
-    new_name = st.text_input("Имя:", value=current_val)
+# 3. Функция сохранения
+def save_data(key, name):
+    sheet = get_sheet()
+    data = sheet.get_all_records()
+    df = pd.DataFrame(data)
     
-    if st.button("Подтвердить"):
-        if not new_name.strip():
-            if key in db:
-                del db[key]
-        else:
+    # Если такой ключ уже есть — обновляем имя
+    if not df.empty and key in df['key'].values:
+        row_index = df[df['key'] == key].index[0] + 2
+        sheet.update_cell(row_index, 2, name)
+    else:
+        # Если нет — добавляем новую строку
+        sheet.append_row([key, name])
+
+# --- Твой интерфейс ---
+st.title("График дежурства")
+
+# Получаем актуальные данные из Google Sheets
+db = load_data()
+
+# Пример того, как ты рисуешь кнопку (используй свой стиль)
+# Допустим, у тебя есть пост "10:00" с ключом "cell_10_00"
+name_input = st.text_input("Введите имя:", key="name_in")
+
+if st.button("Записаться на 10:00"):
+    save_data("cell_10_00", name_input)
+    st.success("Сохранено в Google Таблицу!")
+    st.rerun() # Перезагрузка, чтобы сразу увидеть результат
+
+st.write("Текущие данные в таблице:", db)
             db[key] = new_name.strip()
             
         save_db(db)
