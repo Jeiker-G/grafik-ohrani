@@ -6,20 +6,22 @@ import pandas as pd
 # Настройка подключения
 @st.cache_resource
 def get_sheet():
-    # Берет данные из Secrets, которые мы сейчас настроим
+    # Берет данные из Secrets
     creds_dict = st.secrets["gcp_service_account"]
     creds = Credentials.from_service_account_info(creds_dict)
     scoped_creds = creds.with_scopes([
-        "https://spreadsheets.google.com/feeds", 
+        "https://www.googleapis.com/auth/spreadsheets", 
         "https://www.googleapis.com/auth/drive"
     ])
     client = gspread.authorize(scoped_creds)
-    return client.open_by_key(st.secrets["SHEET_ID"]).sheet1
+    # Открываем таблицу по ID и берем ПЕРВЫЙ лист
+    return client.open_by_key(st.secrets["SHEET_ID"]).get_worksheet(0)
 
 def load_data():
     sheet = get_sheet()
     data = sheet.get_all_records()
-    return {str(row['key']): str(row['name']) for row in data}
+    # Если данные пустые, вернем словарь с дефолтными значениями
+    return {str(row.get('key', '')): str(row.get('name', '')) for row in data}
 
 def save_data(db):
     sheet = get_sheet()
