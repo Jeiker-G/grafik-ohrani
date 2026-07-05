@@ -3,7 +3,7 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 
-# 1. Функция подключения к таблице
+# 1. Настройка подключения (берет данные из Secrets)
 @st.cache_resource
 def get_sheet():
     creds_dict = st.secrets["gcp_service_account"]
@@ -16,24 +16,36 @@ def get_sheet():
 def load_data():
     sheet = get_sheet()
     data = sheet.get_all_records()
-    # Возвращаем словарь, где key — это ключ ячейки, а name — имя
+    # Возвращаем словарь, где key — это ключ, а name — имя
     return {str(row['key']): str(row['name']) for row in data}
 
-# 3. Функция сохранения
-def save_data(key, name):
+# 3. Функция сохранения данных
+def save_data(db):
     sheet = get_sheet()
-    data = sheet.get_all_records()
-    df = pd.DataFrame(data)
-    
-    # Если такой ключ уже есть — обновляем имя
-    if not df.empty and key in df['key'].values:
-        row_index = df[df['key'] == key].index[0] + 2
-        sheet.update_cell(row_index, 2, name)
-    else:
-        # Если нет — добавляем новую строку
-        sheet.append_row([key, name])
+    rows = [[k, v] for k, v in db.items()]
+    sheet.clear()
+    sheet.append_row(['key', 'name'])
+    if rows:
+        sheet.append_rows(rows)
 
-# --- Твой интерфейс ---
+# --- ИНТЕРФЕЙС ---
+st.title("График дежурства")
+
+# Загружаем текущие данные
+db = load_data()
+
+# Пример ввода и кнопки
+name_input = st.text_input("Введите имя:", key="name_in")
+
+if st.button("Записаться на 10:00"):
+    # Сюда записываем ключ и значение
+    db['cell_10_00'] = name_input.strip()
+    # Сохраняем весь словарь обратно в таблицу
+    save_data(db)
+    st.success("Сохранено в Google Таблицу!")
+    st.rerun()
+
+st.write("Текущие данные:", db)
 st.title("График дежурства")
 
 # Получаем актуальные данные из Google Sheets
