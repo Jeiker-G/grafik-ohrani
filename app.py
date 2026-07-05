@@ -2,42 +2,34 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 
-# Настройка страницы
-st.set_page_config(page_title="График дежурства", page_icon="📅")
+# --- НАСТРОЙКИ КЛЮЧА ПРЯМО В КОДЕ ---
+# Вставляем данные напрямую, чтобы избежать проблем с чтением файлов
+SERVICE_ACCOUNT_INFO = {
+    "type": "service_account",
+    "project_id": "grafik-bot-501520",
+    "private_key_id": "2a4423b67537693afeb10eefcb29966ef80b60b1",
+    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC/7fZGnjRucUko\nHoptFkIBvmYPzbwyztmGSdu6r9wCksUNd+7jqS5W2HN/HX2FXzcG8C2JqwFu750Z\nbQ70BObRoikNEhk1B9MHoyiWk/gvceY/k9Z4dhBLxqEtIo2DeDTN0v4i01eB685/\nxCfKf9Xko87voxx7ABeXgPDSduzNidHyXZG7GeVF0Gou2RUf2v5wD8M8/+/rKe/O\nb4/rGeeDNfmNuxxTXazgSUWltpNvWO8McTGmuiNcZiGsObeXLCiWFOpP6wKDxJS0\nxqt3uuhFmGrc8Sk/Sl8bSafWGdRoQJ88u7ih4nMUfFmvle9/Azb/0CX94+ioG6H5\nTIs80JlBAgMBAAECggEAJRoeOqaIojT6HGxS/CWKWwXweuudjwDXohMTC/LFCCZR\nO3pMzuu8joNHSHJt+mNeotO5KdzJ6SUe7HRdqKRt7mZ3oxQ1lT/O9rH+vaUbHCjb\nhrzQf/bqzYs3Sx9b1edd5c/82sSaLP5lq+NCge3Wbl2QOlkAv3JUHTCK3VSqEE1X\nNUK2Yx0s93DXSq6skHm/kFjoTFrfR+lj8+PKgzGHa7in9J3RWr46PMSKiP07vlTN\nqMJkHVv9eS6uFtJKc3CGFDsL3JI0iVrD/eAysPVbqkwMn5b5k7IoBQ2VEGUQN1I/\ngAVgVGxDTYFyjqOUFNsPxosuebzBmWVIQwelrqNJ8QKBgQDv8xqiKSzHoU81k2Dx\n4CNJleXhSdP0pTqbYz0g55/3Rmvr+nFlegBsmGm4YMVEVBtzJtQ8grPR7DFBH6Uq\naW82ED7rgxMeSwNdOn2u5nNmscSjeF/b68LFilyj9t6unwZEahMdfUcr4JIup90H\niJ+0ZxH6S1WlEKl263321gAJHQKBgQDMxI/zeTOyT9Jm3wqhzRP9eTjXwqbd0OdZ\nzuw6IfexcyoKuH5F0jME7vfA4xDGwnsYPu0Zrf6fabJldZjzeJB7XkS6C00b5nyb\njIxYOO8mP+oHNpXDrycZERsLOkzv/N3+OtjvAVqaCQAhsWA5Xezsgiw3cHRfT++9\nfIBs88H7dQKBgQCxbBV2cHGvDuSt3dLiJnSRNahsBBYYoJAMU73gdcR/p++m5mEw\nwpxLsAsEDXHvyy0c4UovkAl8oGPvHoIXMSzNUgfkRuA9FwRezCAg0j/kYG/g2+It\nkE9Nl7hWePVBM08ECVcnB/o3RG9y1iaGKozEbS4K3+dtDTvxNcHHYYdXNQKBgBgv\nu4UZstaEASkvfTUBYTQWZnVtw4H90+XSwCpZqsUmAjhD9H5Qxr/1bgQ1jdy8Sgfi\nHuVinOm9dVnwmwFfI0m/J8UF4rTB88P3xPgCuZS+BemWM/hqLucSEyyvVTkfmCUY\nfVFlewpHhMEfKiMAd7Qc+lPRzbvt3GK08EHtOC4KlAoGBAKhNcXyIpn8NgnIHIQ3z\n5F69gI0fRX+blojyIpH7eT1MYsPprdnp3I99zVlWYz6jh3jWybuIm8/jRCUgYxNh\nFQYXw+mNL9fH50ypQE3ynm1XRY8fBsMe4ZP8DVrB9f11//W21bR/VddurZHYKo5e\nKcb2RRe4beponiFbMMhMmybA\n-----END PRIVATE KEY-----",
+    "client_email": "my-grafik-app@grafik-bot-501520.iam.gserviceaccount.com",
+    "client_id": "112388178246657528769",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-grafik-app%40grafik-bot-501520.iam.gserviceaccount.com"
+}
 
 @st.cache_resource(ttl=600)
 def get_sheet():
-    # Загружаем JSON напрямую из файла
-    creds = Credentials.from_service_account_file(
-        "service_account.json", 
-        scopes=["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    )
-    client = gspread.authorize(creds)
-    # SHEET_ID берем из Secrets, это безопасно и удобно
+    creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO)
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    client = gspread.authorize(creds.with_scopes(scope))
     return client.open_by_key(st.secrets["SHEET_ID"]).get_worksheet(0)
 
-# Интерфейс
+# --- ИНТЕРФЕЙС ---
 st.title("📅 График дежурства")
-
 try:
     sheet = get_sheet()
-    records = sheet.get_all_records()
-    db = {str(row.get('key', '')): str(row.get('name', '')) for row in records}
-    
-    name_input = st.text_input("Введите имя:", key="name_in")
-    
-    if st.button("Записаться на 10:00"):
-        if name_input.strip():
-            db['cell_10_00'] = name_input.strip()
-            # Обновление таблицы
-            sheet.clear()
-            sheet.append_row(['key', 'name'])
-            sheet.append_rows([[k, v] for k, v in db.items()])
-            st.success("Успешно записано!")
-            st.rerun()
-            
-    st.write("Текущие данные:", db)
-
+    st.success("Успешное подключение!")
+    # ... дальше ваша логика работы с данными ...
 except Exception as e:
-    st.error(f"Ошибка при работе с таблицей: {e}")
+    st.error(f"Ошибка: {e}")
     
