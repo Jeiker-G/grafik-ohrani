@@ -3,7 +3,6 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 
-# 1. Настройка подключения (берет данные из Secrets)
 @st.cache_resource
 def get_sheet():
     creds_dict = st.secrets["gcp_service_account"]
@@ -12,14 +11,11 @@ def get_sheet():
     client = gspread.authorize(creds)
     return client.open_by_key(st.secrets["SHEET_ID"]).sheet1
 
-# 2. Функция загрузки данных
 def load_data():
     sheet = get_sheet()
     data = sheet.get_all_records()
-    # Возвращаем словарь, где key — это ключ, а name — имя
     return {str(row['key']): str(row['name']) for row in data}
 
-# 3. Функция сохранения данных
 def save_data(db):
     sheet = get_sheet()
     rows = [[k, v] for k, v in db.items()]
@@ -28,12 +24,18 @@ def save_data(db):
     if rows:
         sheet.append_rows(rows)
 
-# --- ИНТЕРФЕЙС ---
 st.title("График дежурства")
 
-# Загружаем текущие данные
 db = load_data()
+name_input = st.text_input("Введите имя:", key="name_in")
 
+if st.button("Записаться на 10:00"):
+    db['cell_10_00'] = name_input.strip()
+    save_data(db)
+    st.success("Сохранено!")
+    st.rerun()
+
+st.write("Текущие данные:", db)
 # Пример ввода и кнопки
 name_input = st.text_input("Введите имя:", key="name_in")
 
